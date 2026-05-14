@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import hre from "hardhat";
-import { getAddress, isAddress, type Address } from "viem";
+import { createPublicClient, formatEther, getAddress, http, isAddress, type Address } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import {
   explorerAddressUrl,
   explorerTxUrl,
@@ -34,6 +35,31 @@ function normalizeEnvAddress(name: string): Address | undefined {
     throw new Error(`${name} is set but is not a valid EVM address`);
   }
   return getAddress(value);
+}
+
+function normalizePrivateKey(value: string): `0x${string}` {
+  const privateKey = value.startsWith("0x") ? value : `0x${value}`;
+  if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey)) {
+    throw new Error("DEPLOYER_PRIVATE_KEY must be a 32-byte hex private key.");
+  }
+  return privateKey as `0x${string}`;
+}
+
+function configuredDeployerAddress(fallback: Address): Address {
+  const privateKey = readEnv("DEPLOYER_PRIVATE_KEY");
+  if (!privateKey) return fallback;
+  return getAddress(privateKeyToAccount(normalizePrivateKey(privateKey)).address);
+}
+
+async function getArcNativeBalance(address: Address): Promise<bigint | null> {
+  try {
+    const client = createPublicClient({
+      transport: http(readEnv("ARC_RPC_URL") ?? DEFAULT_RPC_URL),
+    });
+    return await client.getBalance({ address });
+  } catch {
+    return null;
+  }
 }
 
 function runNpmTest(): ValidationCheck {
@@ -113,12 +139,16 @@ function resolveAgent(deployer: Address): AgentResolution {
   };
 }
 
-function externalPrerequisites(agentResolution: AgentResolution) {
+function externalPrerequisites(agentResolution: AgentResolution, deployerBalance: bigint | null) {
   const missing = [...agentResolution.missing];
   if (!readEnv("DEPLOYER_PRIVATE_KEY")) {
     missing.push("DEPLOYER_PRIVATE_KEY with funded Arc testnet USDC gas");
   }
-  missing.push("Arc faucet funding must be verified outside this script");
+  if (deployerBalance === null) {
+    missing.push("Arc faucet funding could not be verified from the configured RPC");
+  } else if (deployerBalance === 0n) {
+    missing.push("Arc faucet funding for deployer is required; current native gas balance is 0");
+  }
   return missing;
 }
 
@@ -126,6 +156,7 @@ function createReadiness(
   deployer: Address,
   resolution: AgentResolution,
   tests: ValidationCheck,
+  deployerBalance: bigint | null,
 ): ReadinessArtifact {
   const envCheck: ValidationCheck = resolution.envPassed
     ? {
@@ -158,8 +189,13 @@ function createReadiness(
       tests,
       env: envCheck,
     },
-    missingPrerequisites: externalPrerequisites(resolution),
-    nextActions: resolution.nextActions,
+    missingPrerequisites: externalPrerequisites(resolution, deployerBalance),
+    nextActions: [
+      ...resolution.nextActions,
+      ...(deployerBalance === 0n
+        ? [`Fund deployer ${deployer} with Arc testnet USDC gas from the Circle faucet`]
+        : []),
+    ],
   };
 }
 
@@ -175,12 +211,14 @@ async function getDeployer(): Promise<Address> {
 
 async function main() {
   const validateOnly = process.env.DEPLOY_VALIDATE_ONLY === "true" || hre.network.name === "hardhat";
-  const deployer = await getDeployer();
+  const walletClientDeployer = await getDeployer();
+  const deployer = validateOnly ? configuredDeployerAddress(walletClientDeployer) : walletClientDeployer;
   const resolution = resolveAgent(deployer);
 
   if (validateOnly) {
     const tests = runNpmTest();
-    const readiness = createReadiness(deployer, resolution, tests);
+    const deployerBalance = await getArcNativeBalance(deployer);
+    const readiness = createReadiness(deployer, resolution, tests, deployerBalance);
     const paths = writeReadinessArtifacts(readiness);
 
     console.log("Arc testnet deployment validation complete.");

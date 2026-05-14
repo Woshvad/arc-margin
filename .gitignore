@@ -1,1 +1,3 @@
 .planning/
+.circle.local.env
+.circle-local/

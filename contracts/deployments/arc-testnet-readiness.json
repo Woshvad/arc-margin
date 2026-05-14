@@ -3,11 +3,11 @@
   "status": "ready_to_deploy",
   "chainId": 5042002,
   "rpcUrl": "https://rpc.testnet.arc.network",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "agent": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "temporaryAgent": true,
-  "requiresSetAgent": true,
-  "timestamp": "2026-05-14T21:10:15.624Z",
+  "deployer": "0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5",
+  "agent": "0xC16dce447f17d413a2a4F1eA6C99CEA096550656",
+  "temporaryAgent": false,
+  "requiresSetAgent": false,
+  "timestamp": "2026-05-14T22:14:27.928Z",
   "validation": {
     "compile": {
       "status": "passed",
@@ -19,16 +19,15 @@
     },
     "env": {
       "status": "passed",
-      "detail": "Temporary agent mode explicitly enabled with ALLOW_TEMP_AGENT=true"
+      "detail": "AGENT_WALLET_ADDRESS configured"
     }
   },
   "missingPrerequisites": [
-    "Real AGENT_WALLET_ADDRESS is not configured",
-    "DEPLOYER_PRIVATE_KEY with funded Arc testnet USDC gas",
-    "Arc faucet funding must be verified outside this script"
+    "Arc faucet funding for deployer is required; current native gas balance is 0"
   ],
   "nextActions": [
-    "Call setAgent(realAgent) before backend integration",
-    "Record the final Circle agent wallet address in AGENT_WALLET_ADDRESS"
+    "Fund deployer with Arc testnet USDC gas before broadcast",
+    "Run npm run deploy:arc only after approving the broadcast",
+    "Fund deployer 0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5 with Arc testnet USDC gas from the Circle faucet"
   ]
 }
