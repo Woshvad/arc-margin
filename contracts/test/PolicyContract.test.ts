@@ -173,4 +173,89 @@ describe("PolicyContract", function () {
     expect(await policy.read.getAgent()).to.equal(getAddress(newAgent.account.address));
   });
 
+  it("enforces onlyOwner, onlyAgent, and profile validation", async function () {
+    const { policy, policyAsOther } = await deployPolicy();
+
+    await expect(policyAsOther.write.setPaused([true])).to.be.rejectedWith("Not owner");
+    await expect(policyAsOther.write.evaluateAction([
+      request(ActionType.Hold),
+      100n,
+      120n,
+    ])).to.be.rejectedWith("Not agent");
+    await expect(policy.write.setProfile([3])).to.be.rejectedWith("Invalid profile");
+  });
+
+  it("approves add collateral and increments spentToday", async function () {
+    const { policy, policyAsAgent, publicClient } = await deployPolicy();
+
+    const event = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.AddCollateral, { amount: 100_000_000n }),
+    );
+    const values = await getPolicyValues(policy);
+
+    expect(event.status).to.equal(ActionStatus.Approved);
+    expect(asBigInt(values.spentToday)).to.equal(100_000_000n);
+  });
+
+  it("blocks actions when paused, caps are exceeded, or leverage is too high", async function () {
+    const { policy, policyAsAgent, publicClient } = await deployPolicy();
+
+    await policy.write.setPaused([true]);
+    const paused = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.Hold),
+    );
+    expect(paused.status).to.equal(ActionStatus.Blocked);
+
+    await policy.write.setPaused([false]);
+    await policy.write.setProfile([2]);
+
+    const dailyCap = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.AddCollateral, { amount: 3_000_000_001n }),
+    );
+    expect(dailyCap.status).to.equal(ActionStatus.Blocked);
+
+    const maxSpend = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.AddCollateral, { amount: 1_000_000_001n }),
+    );
+    expect(maxSpend.status).to.equal(ActionStatus.Blocked);
+
+    const maxLeverage = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.Hold, { leverage: 121n }),
+    );
+    expect(maxLeverage.status).to.equal(ActionStatus.Blocked);
+  });
+
+  it("emits simulated statuses for deleverage and hedge while approving hold", async function () {
+    const { policyAsAgent, publicClient } = await deployPolicy();
+
+    const deleverage = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.Deleverage),
+    );
+    const hedge = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.Hedge),
+    );
+    const hold = await executeAndReadEvent(
+      policyAsAgent,
+      publicClient,
+      request(ActionType.Hold),
+    );
+
+    expect(deleverage.status).to.equal(ActionStatus.Simulated);
+    expect(hedge.status).to.equal(ActionStatus.Simulated);
+    expect(hold.status).to.equal(ActionStatus.Approved);
+  });
 });
