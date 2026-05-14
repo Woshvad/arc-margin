@@ -1,0 +1,21 @@
+{
+  "name": "@arcmargin/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:arc": "hardhat run scripts/deploy.ts --network arcTestnet",
+    "deploy:validate": "hardhat run scripts/deploy.ts --network hardhat",
+    "verify:deployment": "hardhat run scripts/verify-deployment.ts --network arcTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0",
+    "@types/node": "^22.15.18",
+    "dotenv": "^16.5.0",
+    "hardhat": "^2.28.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "viem": "^2.49.0"
+  }
+}
