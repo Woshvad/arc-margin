@@ -7,7 +7,7 @@
   "agent": "0xC16dce447f17d413a2a4F1eA6C99CEA096550656",
   "temporaryAgent": false,
   "requiresSetAgent": false,
-  "timestamp": "2026-05-14T22:14:27.928Z",
+  "timestamp": "2026-05-14T22:16:53.540Z",
   "validation": {
     "compile": {
       "status": "passed",
@@ -22,12 +22,9 @@
       "detail": "AGENT_WALLET_ADDRESS configured"
     }
   },
-  "missingPrerequisites": [
-    "Arc faucet funding for deployer is required; current native gas balance is 0"
-  ],
+  "missingPrerequisites": [],
   "nextActions": [
     "Fund deployer with Arc testnet USDC gas before broadcast",
-    "Run npm run deploy:arc only after approving the broadcast",
-    "Fund deployer 0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5 with Arc testnet USDC gas from the Circle faucet"
+    "Run npm run deploy:arc only after approving the broadcast"
   ]
 }

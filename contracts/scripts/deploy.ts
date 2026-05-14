@@ -266,6 +266,14 @@ async function main() {
   });
   const contractAddress = getAddress(receipt.contractAddress ?? contract.address);
   const txHash = deploymentTransaction.hash;
+  const deploymentNextActions = [
+    `Set POLICY_CONTRACT_ADDRESS=${contractAddress} in agent/.env`,
+    `Set AGENT_WALLET_ADDRESS=${resolution.agent} in agent/.env`,
+    "Run npm run verify:deployment any time you need to re-check deployed contract state",
+    ...(resolution.temporaryAgent
+      ? ["Call setAgent(realAgent) before backend integration"]
+      : []),
+  ];
 
   const artifact = {
     contractName: "PolicyContract" as const,
@@ -280,7 +288,7 @@ async function main() {
     requiresSetAgent: resolution.requiresSetAgent,
     transactionHash: txHash,
     timestamp: new Date().toISOString(),
-    nextActions: resolution.nextActions,
+    nextActions: deploymentNextActions,
   };
   const paths = writeDeploymentArtifacts(artifact);
 
