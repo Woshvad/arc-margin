@@ -13,8 +13,8 @@ ArcMargin is not a browser-wallet demo. The backend agent calls a real Solidity 
 | PolicyContract | `0xbA2EA3F3a28767Ed569bB0F36E3153c60d338334` |
 | Authorized Circle agent wallet | `0xC16dce447f17d413a2a4F1eA6C99CEA096550656` |
 | ERC-8004 agent ID | `11576` |
-| Representative policy tx | `0xf5dbd5f8d2f85aba35c55c2a86db3a707a91188246759819d8eebbbd951f5867` |
-| ArcScan proof | https://testnet.arcscan.app/tx/0xf5dbd5f8d2f85aba35c55c2a86db3a707a91188246759819d8eebbbd951f5867 |
+| Representative policy tx | `0x718f3faa63abc7271484e78d0c8c287bb83856a053e1d72e870e1ec7b5dbbf0c` |
+| ArcScan proof | https://testnet.arcscan.app/tx/0x718f3faa63abc7271484e78d0c8c287bb83856a053e1d72e870e1ec7b5dbbf0c |
 | Full audit report | [VERIFY.md](VERIFY.md) |
 
 ## What It Does
