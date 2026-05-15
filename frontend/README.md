@@ -2,6 +2,8 @@
 
 Vite + React + TypeScript dashboard for the ArcMargin backend agent.
 
+For the full judge handoff, setup, proof path, and limitations, see the root `README.md` and `VERIFY.md`.
+
 ## Run
 
 ```bash
