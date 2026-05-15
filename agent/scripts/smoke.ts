@@ -22,6 +22,34 @@ interface StateResponse {
   receipts: Array<{ txHash?: string; explorerUrl?: string }>;
   policy: { contractAddress: string };
   signing: { mode: string };
+  wallet: {
+    usdcBalance: number;
+    balanceUpdatedAt: string | null;
+    balanceStatus: string;
+    balanceError: string | null;
+  };
+  integrations: {
+    circleWallet: { status: string; configured: boolean };
+    balance: { status: string; usdcBalance: number; updatedAt: string | null; error: string | null };
+    identity: { status: string; registryAddress: string; signerMode: string; txHash: string | null; explorerUrl: string | null };
+    telegram: { status: string; configured: boolean };
+  };
+}
+
+function assertNoSecrets(state: StateResponse): void {
+  const serialized = JSON.stringify(state);
+  const forbidden = [
+    "CIRCLE_API_KEY",
+    "CIRCLE_ENTITY_SECRET",
+    "entitySecret",
+    "apiKey",
+    "botToken",
+    "chatId",
+    "privateKey",
+    "POLICY_OWNER_PRIVATE_KEY",
+  ];
+  const leaked = forbidden.find((token) => serialized.includes(token));
+  if (leaked) throw new Error(`State response appears to expose secret field ${leaked}.`);
 }
 
 const health = await request<{ ok: boolean }>("/health");
@@ -34,6 +62,17 @@ if (!Array.isArray(initial.positions) || initial.positions.length === 0) {
 if (!initial.policy.contractAddress?.startsWith("0x")) {
   throw new Error("State response does not include policy contract address.");
 }
+if (!initial.integrations?.circleWallet?.status) throw new Error("Circle wallet integration status missing.");
+if (!initial.integrations?.balance?.status) throw new Error("Balance integration status missing.");
+if (!initial.integrations?.identity?.status) throw new Error("Identity integration status missing.");
+if (!initial.integrations?.telegram?.status) throw new Error("Telegram integration status missing.");
+if (!["fresh", "stale", "error", "unconfigured"].includes(initial.wallet.balanceStatus)) {
+  throw new Error(`Unexpected wallet balance status ${initial.wallet.balanceStatus}.`);
+}
+if (initial.integrations.identity.registryAddress && !initial.integrations.identity.registryAddress.startsWith("0x")) {
+  throw new Error("Identity registry address is not an EVM address.");
+}
+assertNoSecrets(initial);
 
 await request("/api/shock", { method: "POST", body: "{}" });
 
@@ -57,12 +96,17 @@ await request("/api/reset", { method: "POST", body: "{}" });
 
 const finalState = await request<StateResponse>("/api/state");
 if (!Array.isArray(finalState.receipts)) throw new Error("Final state receipts missing.");
+assertNoSecrets(finalState);
 
 console.log(
   JSON.stringify(
     {
       ok: true,
       signingMode: initial.signing.mode,
+      circleWalletStatus: initial.integrations.circleWallet.status,
+      balanceStatus: initial.wallet.balanceStatus,
+      identityStatus: initial.integrations.identity.status,
+      telegramStatus: initial.integrations.telegram.status,
       cycleTxHash: cycle.receipt.txHash ?? null,
       receiptCountAfterReset: finalState.receipts.length,
     },

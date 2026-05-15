@@ -13,6 +13,10 @@ export type OnChainStatus = "Approved" | "Blocked" | "Simulated";
 export type RiskProfile = "Conservative" | "Balanced" | "Advanced";
 export type Venue = "Hyperliquid" | "dYdX" | "GMX" | "Vertex";
 export type SigningMode = "circle-native" | "eoa-fallback" | "unconfigured";
+export type BalanceStatus = "fresh" | "stale" | "error" | "unconfigured";
+export type CircleWalletSetupStatus = "ready" | "unconfigured" | "mismatch" | "error";
+export type IdentityStatus = "registered" | "pending" | "blocked" | "unconfigured" | "configured";
+export type TelegramStatus = "configured" | "unconfigured";
 
 export interface Position {
   id: string;
@@ -57,7 +61,61 @@ export interface WalletState {
   walletId: string | null;
   usdcBalance: number;
   balanceUpdatedAt: string | null;
+  balanceStatus: BalanceStatus;
+  balanceError: string | null;
   agentErc8004Id: string;
+}
+
+export interface CircleWalletIntegrationStatus {
+  status: CircleWalletSetupStatus;
+  configured: boolean;
+  walletId: string | null;
+  address: Address | null;
+  walletSetId: string | null;
+  blockchain: string | null;
+  accountType: string | null;
+  walletState: string | null;
+  artifactPath: string | null;
+  contractAgentAddress: Address | null;
+  matchesPolicyAgent: boolean | null;
+  message: string;
+  checkedAt: string | null;
+}
+
+export interface BalanceIntegrationStatus {
+  status: BalanceStatus;
+  usdcBalance: number;
+  updatedAt: string | null;
+  error: string | null;
+  ttlMs: number;
+}
+
+export interface IdentityIntegrationStatus {
+  status: IdentityStatus;
+  agentId: string | null;
+  registryAddress: Address;
+  agentAddress: Address | null;
+  metadataUri: string | null;
+  metadataHash: Hex | null;
+  txHash: Hex | null;
+  circleTransactionId: string | null;
+  explorerUrl: string | null;
+  signerMode: "circle-native" | "owner-fallback" | "env-only" | "none";
+  blocker: string | null;
+  updatedAt: string | null;
+}
+
+export interface TelegramIntegrationStatus {
+  status: TelegramStatus;
+  configured: boolean;
+  disclosure: string;
+}
+
+export interface IntegrationStatus {
+  circleWallet: CircleWalletIntegrationStatus;
+  balance: BalanceIntegrationStatus;
+  identity: IdentityIntegrationStatus;
+  telegram: TelegramIntegrationStatus;
 }
 
 export interface ChainState {
@@ -140,6 +198,7 @@ export interface AppSnapshot {
   runtime: RuntimeState;
   adapters: AdapterMetadata[];
   signing: SigningModeMetadata;
+  integrations: IntegrationStatus;
   newestReceiptId: string | null;
 }
 

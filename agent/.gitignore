@@ -7,3 +7,4 @@ data/
 logs/
 *.log
 artifacts/*.local.*
+artifacts/*.json

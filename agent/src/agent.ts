@@ -4,6 +4,7 @@ import { cycleInProgressError, toErrorPayload } from "./errors.js";
 import { localAutopilotReceipt, receiptFromPolicyEvent } from "./receipts.js";
 import {
   getApiState,
+  getFreshApiState,
   hardReset,
   insertReceipt,
   loadSnapshot,
@@ -13,12 +14,13 @@ import {
   updateSnapshot,
 } from "./state.js";
 import { profileSettings } from "./fixtures.js";
+import { notifyReceipt } from "./telegram.js";
 import type { AgentState, AppSnapshot, Receipt, RiskAction, RiskProfile } from "./types.js";
 
 let cycleInProgress = false;
 
-export function getState(): AgentState {
-  return getApiState();
+export async function getState(): Promise<AgentState> {
+  return getFreshApiState();
 }
 
 function updateAdapter(snapshot: AppSnapshot, venue: string, timestamp: string): void {
@@ -96,7 +98,8 @@ export async function runCycle(options: { source?: "manual" | "autopilot"; broad
       applyReceiptEffects(snapshot, receipt, action);
       snapshot.runtime.autopilotTickCount += 1;
       saveSnapshot(snapshot);
-      return { receipt, state: getApiState(), onChain: false };
+      void notifyReceipt(receipt);
+      return { receipt, state: await getFreshApiState(), onChain: false };
     }
 
     const execution = await executePolicyAction(action);
@@ -115,8 +118,9 @@ export async function runCycle(options: { source?: "manual" | "autopilot"; broad
     snapshot.runtime.lastError = null;
     if (options.source === "autopilot") snapshot.runtime.autopilotTickCount += 1;
     saveSnapshot(snapshot);
+    void notifyReceipt(receipt);
 
-    return { receipt, state: getApiState(), onChain: true };
+    return { receipt, state: await getFreshApiState(), onChain: true };
   } catch (error) {
     const payload = toErrorPayload(error);
     setRuntimeError({ code: payload.code, message: payload.message, details: payload.details });

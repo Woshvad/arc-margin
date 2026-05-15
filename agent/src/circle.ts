@@ -29,7 +29,12 @@ export async function getAgentUsdcBalance(): Promise<number | null> {
     tokenBalances?: Array<{ token?: { symbol?: string }; amount?: string }>;
   };
   const usdc = data.tokenBalances?.find((balance) => balance.token?.symbol === "USDC");
-  return usdc?.amount ? Number(usdc.amount) : 0;
+  if (!usdc?.amount) return 0;
+  const parsed = Number(usdc.amount);
+  if (!Number.isFinite(parsed)) {
+    throw new AgentError("circle_balance_parse_failed", "Circle returned a non-numeric USDC balance.", 502);
+  }
+  return parsed;
 }
 
 export interface CircleExecutionResult {

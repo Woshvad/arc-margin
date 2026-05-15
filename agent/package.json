@@ -8,7 +8,11 @@
     "build": "tsc",
     "check": "tsc --noEmit",
     "start": "node dist/src/index.js",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "setup:wallet": "tsx src/setup.ts setup:wallet",
+    "verify:wallet": "tsx src/setup.ts verify-wallet",
+    "setup:identity": "tsx src/setup.ts setup:identity",
+    "verify:identity": "tsx src/setup.ts verify:identity"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.3.1",

@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { getAddress, isAddress } from "viem";
 import type { Address, Hex } from "./types.js";
 
-interface DeploymentArtifact {
+export interface DeploymentArtifact {
   contractAddress?: string;
   chainId?: number;
   rpcUrl?: string;
@@ -13,7 +13,7 @@ interface DeploymentArtifact {
   agent?: string;
 }
 
-interface LocalCircleWallet {
+export interface LocalCircleWallet {
   wallet?: {
     id?: string;
     address?: string;
@@ -48,6 +48,8 @@ export interface AppConfig {
     walletId: string | null;
     walletAddress: Address | null;
     walletSetId: string | null;
+    localWallet: LocalCircleWallet | null;
+    walletArtifactPath: string | null;
     configured: boolean;
   };
   fallback: {
@@ -58,8 +60,21 @@ export interface AppConfig {
   runtime: {
     dbPath: string;
     contractCallTimeoutMs: number;
+    circleBalanceTtlMs: number;
     autopilotWritesEnabled: boolean;
     agentErc8004Id: string;
+  };
+  identity: {
+    identityRegistryAddress: Address;
+    reputationRegistryAddress: Address;
+    validationRegistryAddress: Address;
+    allowOwnerFallback: boolean;
+    metadataUriOverride: string | null;
+  };
+  telegram: {
+    botToken: string | null;
+    chatId: string | null;
+    configured: boolean;
   };
 }
 
@@ -87,7 +102,7 @@ loadEnvFile(path.join(projectRoot, "contracts", ".env"));
 loadEnvFile(path.join(projectRoot, ".circle.local.env"));
 loadEnvFile(path.join(agentRoot, ".env"), true);
 
-function readJson<T>(filePath: string): T | null {
+export function readJson<T>(filePath: string): T | null {
   try {
     if (!fs.existsSync(filePath)) return null;
     return JSON.parse(fs.readFileSync(filePath, "utf8")) as T;
@@ -108,16 +123,16 @@ function findDeploymentArtifact(): { artifact: DeploymentArtifact | null; filePa
   return { artifact: null, filePath: null };
 }
 
-function findCircleWallet(): LocalCircleWallet | null {
+function findCircleWallet(): { wallet: LocalCircleWallet | null; filePath: string | null } {
   const candidates = [
     path.join(projectRoot, ".circle-local", "wallet.json"),
     path.join(agentRoot, "..", ".circle-local", "wallet.json"),
   ];
   for (const filePath of candidates) {
     const wallet = readJson<LocalCircleWallet>(filePath);
-    if (wallet?.wallet?.id || wallet?.wallet?.address) return wallet;
+    if (wallet?.wallet?.id || wallet?.wallet?.address) return { wallet, filePath };
   }
-  return null;
+  return { wallet: null, filePath: null };
 }
 
 function asAddress(value: string | null | undefined): Address | null {
@@ -150,7 +165,7 @@ function envBool(name: string, fallback = false): boolean {
 }
 
 const { artifact: deployment, filePath: deploymentArtifactPath } = findDeploymentArtifact();
-const circleWallet = findCircleWallet();
+const { wallet: circleWallet, filePath: circleWalletArtifactPath } = findCircleWallet();
 
 const contractAddress =
   asAddress(env("POLICY_CONTRACT_ADDRESS")) ??
@@ -175,6 +190,15 @@ const circleWalletId =
 
 const ownerPrivateKey = asHex(env("POLICY_OWNER_PRIVATE_KEY") ?? env("DEPLOYER_PRIVATE_KEY"));
 const fallbackAllowed = envBool("ALLOW_EOA_FALLBACK", false);
+const identityRegistryAddress =
+  asAddress(env("ERC8004_IDENTITY_REGISTRY_ADDRESS")) ??
+  ("0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address);
+const reputationRegistryAddress =
+  asAddress(env("ERC8004_REPUTATION_REGISTRY_ADDRESS")) ??
+  ("0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address);
+const validationRegistryAddress =
+  asAddress(env("ERC8004_VALIDATION_REGISTRY_ADDRESS")) ??
+  ("0x8004Cb1BF31DAf7788923b405b754f57acEB4272" as Address);
 
 export const appConfig: AppConfig = {
   projectRoot,
@@ -200,6 +224,8 @@ export const appConfig: AppConfig = {
     walletId: circleWalletId,
     walletAddress: circleWalletAddress,
     walletSetId: env("AGENT_WALLET_SET_ID") ?? circleWallet?.walletSetId ?? null,
+    localWallet: circleWallet,
+    walletArtifactPath: circleWalletArtifactPath,
     configured: Boolean(env("CIRCLE_API_KEY") && env("CIRCLE_ENTITY_SECRET") && circleWalletId),
   },
   fallback: {
@@ -210,7 +236,20 @@ export const appConfig: AppConfig = {
   runtime: {
     dbPath: path.resolve(agentRoot, env("AGENT_DB_PATH") ?? "./arcmargin.sqlite"),
     contractCallTimeoutMs: envNumber("CONTRACT_CALL_TIMEOUT_MS", 180_000),
+    circleBalanceTtlMs: envNumber("CIRCLE_BALANCE_TTL_MS", 30_000),
     autopilotWritesEnabled: envBool("ENABLE_AUTOPILOT_WRITES", false),
     agentErc8004Id: env("AGENT_ERC8004_ID") ?? "pending",
+  },
+  identity: {
+    identityRegistryAddress,
+    reputationRegistryAddress,
+    validationRegistryAddress,
+    allowOwnerFallback: envBool("ALLOW_IDENTITY_OWNER_FALLBACK", false),
+    metadataUriOverride: env("AGENT_METADATA_URI"),
+  },
+  telegram: {
+    botToken: env("TELEGRAM_BOT_TOKEN"),
+    chatId: env("TELEGRAM_CHAT_ID"),
+    configured: Boolean(env("TELEGRAM_BOT_TOKEN") && env("TELEGRAM_CHAT_ID")),
   },
 };

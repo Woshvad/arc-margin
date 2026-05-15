@@ -9,6 +9,7 @@ import type {
   RiskProfile,
   SigningModeMetadata,
   WalletState,
+  IntegrationStatus,
 } from "./types.js";
 import type { AppConfig } from "./config.js";
 import { randomTxId } from "./arc.js";
@@ -165,7 +166,67 @@ export function initialWallet(config: AppConfig): WalletState {
     walletId: config.circle.walletId,
     usdcBalance: 0,
     balanceUpdatedAt: null,
+    balanceStatus: config.circle.configured ? "stale" : "unconfigured",
+    balanceError: config.circle.configured ? null : "Circle credentials or wallet ID are not configured.",
     agentErc8004Id: config.runtime.agentErc8004Id,
+  };
+}
+
+export function initialIntegrations(config: AppConfig): IntegrationStatus {
+  const localWallet = config.circle.localWallet?.wallet;
+  const matchesPolicyAgent =
+    config.circle.walletAddress && config.deployment.agentAddress
+      ? config.circle.walletAddress.toLowerCase() === config.deployment.agentAddress.toLowerCase()
+      : null;
+  return {
+    circleWallet: {
+      status: config.circle.walletId && config.circle.walletAddress ? matchesPolicyAgent === false ? "mismatch" : "ready" : "unconfigured",
+      configured: config.circle.configured,
+      walletId: config.circle.walletId,
+      address: config.circle.walletAddress,
+      walletSetId: config.circle.walletSetId,
+      blockchain: localWallet?.blockchain ?? null,
+      accountType: localWallet?.accountType ?? null,
+      walletState: localWallet?.state ?? null,
+      artifactPath: config.circle.walletArtifactPath,
+      contractAgentAddress: config.deployment.agentAddress,
+      matchesPolicyAgent,
+      message:
+        matchesPolicyAgent === false
+          ? "Configured Circle wallet does not match the deployed policy agent."
+          : config.circle.walletId && config.circle.walletAddress
+            ? "Circle ARC-TESTNET wallet metadata is available."
+            : "Circle wallet metadata is not configured.",
+      checkedAt: null,
+    },
+    balance: {
+      status: config.circle.configured ? "stale" : "unconfigured",
+      usdcBalance: 0,
+      updatedAt: null,
+      error: config.circle.configured ? null : "Circle credentials or wallet ID are not configured.",
+      ttlMs: config.runtime.circleBalanceTtlMs,
+    },
+    identity: {
+      status: config.runtime.agentErc8004Id && config.runtime.agentErc8004Id !== "pending" ? "configured" : "pending",
+      agentId: config.runtime.agentErc8004Id && config.runtime.agentErc8004Id !== "pending" ? config.runtime.agentErc8004Id : null,
+      registryAddress: config.identity.identityRegistryAddress,
+      agentAddress: config.circle.walletAddress,
+      metadataUri: null,
+      metadataHash: null,
+      txHash: null,
+      circleTransactionId: null,
+      explorerUrl: null,
+      signerMode: config.runtime.agentErc8004Id && config.runtime.agentErc8004Id !== "pending" ? "env-only" : "none",
+      blocker: null,
+      updatedAt: null,
+    },
+    telegram: {
+      status: config.telegram.configured ? "configured" : "unconfigured",
+      configured: config.telegram.configured,
+      disclosure: config.telegram.configured
+        ? "Telegram receipt notifications are configured."
+        : "Telegram receipt notifications are optional and not configured.",
+    },
   };
 }
 
@@ -221,6 +282,7 @@ export function createInitialSnapshot(config: AppConfig): AppSnapshot {
     },
     adapters: initialAdapters(),
     signing: initialSigning(config),
+    integrations: initialIntegrations(config),
     newestReceiptId: null,
   };
 }
