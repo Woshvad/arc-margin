@@ -1,20 +1,34 @@
+import { AdapterHealthDrawer } from "./AdapterHealthDrawer";
 import { ReceiptCard } from "./ReceiptCard";
-import { fmtDateTime, shortAddress } from "../lib/format";
+import { ReceiptDetailDrawer } from "./ReceiptDetailDrawer";
 import { sortedReceipts } from "../lib/receipts";
 import type { AgentState, Receipt } from "../types/agent";
 
 interface ReceiptTrailProps {
   state: AgentState;
   selectedReceipt: Receipt | null;
+  adapterHealthOpen: boolean;
   onDetails: (receipt: Receipt) => void;
   onCloseDetails: () => void;
+  onOpenAdapterHealth: () => void;
+  onCloseAdapterHealth: () => void;
+  highlighted?: boolean;
 }
 
-export function ReceiptTrail({ state, selectedReceipt, onDetails, onCloseDetails }: ReceiptTrailProps) {
+export function ReceiptTrail({
+  state,
+  selectedReceipt,
+  adapterHealthOpen,
+  onDetails,
+  onCloseDetails,
+  onOpenAdapterHealth,
+  onCloseAdapterHealth,
+  highlighted = false,
+}: ReceiptTrailProps) {
   const receipts = sortedReceipts(state.receipts);
 
   return (
-    <section className="section wrap" data-screen-label="Receipt Trail">
+    <section id="sec-receipts" className={"section wrap" + (highlighted ? " section-highlight" : "")} data-screen-label="Receipt Trail">
       <hr className="dotted" />
       <div className="section-header" style={{ marginTop: 36 }}>
         <div>
@@ -25,6 +39,11 @@ export function ReceiptTrail({ state, selectedReceipt, onDetails, onCloseDetails
         </div>
         <div className="section-kicker">
           Real tx receipts get ArcScan links. Local fallback and seeded rows stay labeled as simulated.
+        </div>
+        <div className="section-actions">
+          <button className="pill outline" onClick={onOpenAdapterHealth}>
+            Open Adapter Health
+          </button>
         </div>
       </div>
 
@@ -40,36 +59,8 @@ export function ReceiptTrail({ state, selectedReceipt, onDetails, onCloseDetails
         ))}
       </div>
 
-      {selectedReceipt && (
-        <div className="receipt-detail-panel">
-          <div className="section-num">Receipt details</div>
-          <div className="receipt-title" style={{ marginTop: 8 }}>{selectedReceipt.title}</div>
-          <div className="receipt-detail-grid">
-            <div>
-              <div className="agent-status-label">Action</div>
-              <div className="agent-status-value">{selectedReceipt.action}</div>
-            </div>
-            <div>
-              <div className="agent-status-label">Venue / Pair</div>
-              <div className="agent-status-value">
-                {selectedReceipt.venue} / {selectedReceipt.pair}
-              </div>
-            </div>
-            <div>
-              <div className="agent-status-label">Tx Hash</div>
-              <div className="agent-status-value">{shortAddress(selectedReceipt.txHash ?? selectedReceipt.txId)}</div>
-            </div>
-            <div>
-              <div className="agent-status-label">Time</div>
-              <div className="agent-status-value">{fmtDateTime(selectedReceipt.time)}</div>
-            </div>
-          </div>
-          <p className="receipt-reason">{selectedReceipt.executionDisclosure ?? selectedReceipt.reason}</p>
-          <button className="pill ghost" onClick={onCloseDetails}>
-            Close Details
-          </button>
-        </div>
-      )}
+      <ReceiptDetailDrawer state={state} receipt={selectedReceipt} onClose={onCloseDetails} />
+      <AdapterHealthDrawer state={state} open={adapterHealthOpen} onClose={onCloseAdapterHealth} />
     </section>
   );
 }

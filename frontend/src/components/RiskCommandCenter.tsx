@@ -1,20 +1,38 @@
 import { PortfolioStrip } from "./PortfolioStrip";
 import { PositionCard } from "./PositionCard";
 import type { PortfolioStats } from "../lib/risk";
+import type { PendingAction } from "../store/useStore";
 import type { AgentState, Position } from "../types/agent";
 
 interface RiskCommandCenterProps {
   state: AgentState;
   stats: PortfolioStats;
   weakest: Position;
+  pendingAction: PendingAction;
+  demoRunning: boolean;
+  resetStatus: string | null;
+  highlighted: boolean;
   onShock: () => void;
   onRunCycle: () => void;
   onReset: () => void;
 }
 
-export function RiskCommandCenter({ state, stats, weakest, onShock, onRunCycle, onReset }: RiskCommandCenterProps) {
+export function RiskCommandCenter({
+  state,
+  stats,
+  weakest,
+  pendingAction,
+  demoRunning,
+  resetStatus,
+  highlighted,
+  onShock,
+  onRunCycle,
+  onReset,
+}: RiskCommandCenterProps) {
+  const actionBusy = pendingAction !== null || demoRunning;
+
   return (
-    <section id="sec-dashboard" className="section wrap" data-screen-label="Risk Command Center">
+    <section id="sec-dashboard" className={"section wrap" + (highlighted ? " section-highlight" : "")} data-screen-label="Risk Command Center">
       <hr className="dotted" />
       <div className="section-header" style={{ marginTop: 36 }}>
         <div>
@@ -27,15 +45,16 @@ export function RiskCommandCenter({ state, stats, weakest, onShock, onRunCycle, 
           Live backend state first. Buffers, funding, PnL, policy fit, and Arc receipt truth surface before they matter.
         </div>
         <div className="section-actions">
-          <button className="pill outline" onClick={onShock}>
-            Simulate Shock
+          <button className="pill outline" onClick={onShock} disabled={actionBusy}>
+            {pendingAction === "shock" ? "Simulating" : "Simulate Shock"}
           </button>
-          <button className="pill gold" onClick={onRunCycle}>
-            Run Cycle
+          <button className="pill gold" onClick={onRunCycle} disabled={actionBusy}>
+            {pendingAction === "cycle" ? "Running" : "Run Cycle"}
           </button>
-          <button className="pill ghost" onClick={onReset}>
-            Reset
+          <button className="pill ghost" onClick={onReset} disabled={actionBusy}>
+            {pendingAction === "reset" ? "Resetting" : "Reset"}
           </button>
+          {resetStatus && <span className="mini-pill good">{resetStatus}</span>}
         </div>
       </div>
 

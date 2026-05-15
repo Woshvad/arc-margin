@@ -21,7 +21,9 @@ export type PendingAction =
   | "pause"
   | "autohedge"
   | "export"
+  | "demo"
   | null;
+export type SectionHighlight = "risk" | "policy" | "receipts" | "demo" | "wallet" | null;
 
 interface StoreState {
   state: AgentState;
@@ -31,14 +33,32 @@ interface StoreState {
   lastError: string | null;
   pendingAction: PendingAction;
   selectedReceipt: Receipt | null;
+  adapterHealthOpen: boolean;
+  demoRunning: boolean;
   demoStep: number;
+  demoStepLoading: boolean;
+  demoError: string | null;
+  walletProofVisible: boolean;
+  walletProofTouched: boolean;
+  resetStatus: string | null;
+  sectionHighlight: SectionHighlight;
   policyExportStatus: string | null;
   setServerState: (state: AgentState) => void;
   markPollFailure: (error: string) => void;
   setPendingAction: (action: PendingAction) => void;
   setSelectedReceipt: (receipt: Receipt | null) => void;
+  setAdapterHealthOpen: (open: boolean) => void;
+  setDemoRunning: (running: boolean) => void;
   setDemoStep: (step: number) => void;
+  setDemoStepLoading: (loading: boolean) => void;
+  setDemoError: (error: string | null) => void;
+  connectWalletProof: () => void;
+  disconnectWalletProof: () => void;
+  setResetStatus: (status: string | null) => void;
+  setSectionHighlight: (highlight: SectionHighlight) => void;
   setPolicyExportStatus: (status: string | null) => void;
+  clearTransientUi: () => void;
+  finishResetFeedback: () => void;
   applyFallbackShock: (error: string) => void;
   applyFallbackCycle: (error: string) => void;
   applyFallbackReset: (error: string) => void;
@@ -65,7 +85,7 @@ function mergeServerState(current: AgentState, incoming: AgentState): AgentState
   };
 }
 
-export const useStore = create<StoreState>()((set, get) => ({
+export const useStore = create<StoreState>()((set) => ({
   state: demoState,
   connectionMode: "demo",
   backendConnected: false,
@@ -73,7 +93,15 @@ export const useStore = create<StoreState>()((set, get) => ({
   lastError: null,
   pendingAction: null,
   selectedReceipt: null,
+  adapterHealthOpen: false,
+  demoRunning: false,
   demoStep: -1,
+  demoStepLoading: false,
+  demoError: null,
+  walletProofVisible: false,
+  walletProofTouched: false,
+  resetStatus: null,
+  sectionHighlight: null,
   policyExportStatus: null,
 
   setServerState: (state) =>
@@ -83,6 +111,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       backendConnected: true,
       lastServerAt: new Date().toISOString(),
       lastError: state.runtime.lastError?.message ?? null,
+      walletProofVisible: current.walletProofTouched ? current.walletProofVisible : state.wallet.connected,
     })),
 
   markPollFailure: (error) =>
@@ -90,18 +119,50 @@ export const useStore = create<StoreState>()((set, get) => ({
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       state: current.backendConnected ? current.state : demoState,
       lastError: error,
+      walletProofVisible: current.backendConnected ? current.walletProofVisible : false,
     })),
 
   setPendingAction: (action) => set({ pendingAction: action }),
   setSelectedReceipt: (receipt) => set({ selectedReceipt: receipt }),
+  setAdapterHealthOpen: (open) => set({ adapterHealthOpen: open }),
+  setDemoRunning: (running) => set({ demoRunning: running }),
   setDemoStep: (step) => set({ demoStep: step }),
+  setDemoStepLoading: (loading) => set({ demoStepLoading: loading }),
+  setDemoError: (error) => set({ demoError: error }),
+  connectWalletProof: () => set({ walletProofVisible: true, walletProofTouched: true, sectionHighlight: "wallet" }),
+  disconnectWalletProof: () => set({ walletProofVisible: false, walletProofTouched: true, sectionHighlight: "wallet" }),
+  setResetStatus: (status) => set({ resetStatus: status }),
+  setSectionHighlight: (highlight) => set({ sectionHighlight: highlight }),
   setPolicyExportStatus: (status) => set({ policyExportStatus: status }),
+  clearTransientUi: () =>
+    set({
+      selectedReceipt: null,
+      adapterHealthOpen: false,
+      demoRunning: false,
+      demoStep: -1,
+      demoStepLoading: false,
+      demoError: null,
+      sectionHighlight: null,
+    }),
+  finishResetFeedback: () =>
+    set({
+      pendingAction: null,
+      selectedReceipt: null,
+      adapterHealthOpen: false,
+      demoRunning: false,
+      demoStep: -1,
+      demoStepLoading: false,
+      demoError: null,
+      resetStatus: "Scenario reset",
+      sectionHighlight: "risk",
+    }),
 
   applyFallbackShock: (error) =>
     set((current) => ({
       state: applyLocalShock(current.state),
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       lastError: error,
+      sectionHighlight: "risk",
     })),
 
   applyFallbackCycle: (error) =>
@@ -111,24 +172,33 @@ export const useStore = create<StoreState>()((set, get) => ({
         state: next,
         connectionMode: current.backendConnected ? "reconnecting" : "demo",
         lastError: error,
-        selectedReceipt: next.receipts.find((receipt) => receipt.id === next.newestReceiptId) ?? get().selectedReceipt,
+        selectedReceipt: next.receipts.find((receipt) => receipt.id === next.newestReceiptId) ?? current.selectedReceipt,
+        sectionHighlight: "receipts",
       };
     }),
 
   applyFallbackReset: (error) =>
-    set({
+    set((current) => ({
       state: resetLocal(),
-      connectionMode: "demo",
-      backendConnected: false,
+      connectionMode: current.backendConnected ? "reconnecting" : "demo",
+      backendConnected: current.backendConnected,
       lastError: error,
       selectedReceipt: null,
-    }),
+      adapterHealthOpen: false,
+      demoRunning: false,
+      demoStep: -1,
+      demoStepLoading: false,
+      demoError: null,
+      resetStatus: "Scenario reset",
+      sectionHighlight: "risk",
+    })),
 
   applyFallbackProfile: (profile, error) =>
     set((current) => ({
       state: setLocalProfile(current.state, profile),
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       lastError: error,
+      sectionHighlight: "policy",
     })),
 
   applyFallbackPaused: (paused, error) =>
@@ -136,6 +206,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       state: setLocalPaused(current.state, paused),
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       lastError: error,
+      sectionHighlight: "policy",
     })),
 
   applyFallbackAutopilot: (on, error) =>
@@ -143,6 +214,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       state: setLocalAutopilot(current.state, on),
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       lastError: error,
+      sectionHighlight: "risk",
     })),
 
   applyFallbackAutoHedge: (on, error) =>
@@ -150,6 +222,7 @@ export const useStore = create<StoreState>()((set, get) => ({
       state: setLocalAutoHedge(current.state, on),
       connectionMode: current.backendConnected ? "reconnecting" : "demo",
       lastError: error,
+      sectionHighlight: "policy",
     })),
 }));
 

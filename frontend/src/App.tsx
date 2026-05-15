@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArcLayer } from "./components/ArcLayer";
 import { DemoFlow } from "./components/DemoFlow";
 import { Hero } from "./components/Hero";
@@ -22,21 +22,59 @@ export default function App() {
   const pendingAction = useStore((store) => store.pendingAction);
   const selectedReceipt = useStore((store) => store.selectedReceipt);
   const setSelectedReceipt = useStore((store) => store.setSelectedReceipt);
+  const adapterHealthOpen = useStore((store) => store.adapterHealthOpen);
+  const setAdapterHealthOpen = useStore((store) => store.setAdapterHealthOpen);
+  const demoRunning = useStore((store) => store.demoRunning);
   const demoStep = useStore((store) => store.demoStep);
+  const demoStepLoading = useStore((store) => store.demoStepLoading);
+  const demoError = useStore((store) => store.demoError);
+  const walletProofVisible = useStore((store) => store.walletProofVisible);
+  const resetStatus = useStore((store) => store.resetStatus);
+  const sectionHighlight = useStore((store) => store.sectionHighlight);
   const policyExportStatus = useStore((store) => store.policyExportStatus);
 
   const stats = useMemo(() => portfolioStats(state), [state]);
   const weakest = useMemo(() => weakestPosition(state.positions), [state.positions]);
+  const resetAction = actions.reset;
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTextInput =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+      if (isTextInput) return;
+      if (event.key === "r" || event.key === "R") {
+        event.preventDefault();
+        void resetAction();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [resetAction]);
 
   return (
     <>
-      <Nav section={section} setSection={setSection} onRunCycle={actions.runCycle} connectionMode={connectionMode} />
+      <Nav
+        section={section}
+        setSection={setSection}
+        onRunCycle={actions.runCycle}
+        connectionMode={connectionMode}
+        state={state}
+        pendingAction={pendingAction}
+        walletProofVisible={walletProofVisible}
+        onConnectWallet={actions.connectWallet}
+        onDisconnectWallet={actions.disconnectWallet}
+      />
 
       <Hero
         state={state}
         stats={stats}
         weakest={weakest}
         connectionMode={connectionMode}
+        walletProofVisible={walletProofVisible}
         onRunCycle={actions.runCycle}
         onShock={actions.runShock}
       />
@@ -45,6 +83,10 @@ export default function App() {
         state={state}
         stats={stats}
         weakest={weakest}
+        pendingAction={pendingAction}
+        demoRunning={demoRunning}
+        resetStatus={resetStatus}
+        highlighted={sectionHighlight === "risk"}
         onShock={actions.runShock}
         onRunCycle={actions.runCycle}
         onReset={actions.reset}
@@ -53,6 +95,8 @@ export default function App() {
       <PolicySection
         state={state}
         pendingAction={pendingAction}
+        demoRunning={demoRunning}
+        highlighted={sectionHighlight === "policy"}
         exportStatus={policyExportStatus}
         onProfile={actions.setProfile}
         onAutoHedge={actions.setAutoHedge}
@@ -66,11 +110,24 @@ export default function App() {
       <ReceiptTrail
         state={state}
         selectedReceipt={selectedReceipt}
+        adapterHealthOpen={adapterHealthOpen}
         onDetails={setSelectedReceipt}
         onCloseDetails={() => setSelectedReceipt(null)}
+        onOpenAdapterHealth={() => setAdapterHealthOpen(true)}
+        onCloseAdapterHealth={() => setAdapterHealthOpen(false)}
+        highlighted={sectionHighlight === "receipts"}
       />
 
-      <DemoFlow active={demoStep} onShock={actions.runShock} onRunCycle={actions.runCycle} />
+      <DemoFlow
+        active={demoStep}
+        loading={demoStepLoading}
+        running={demoRunning}
+        error={demoError}
+        highlighted={sectionHighlight === "demo"}
+        onShock={actions.runShock}
+        onRunCycle={actions.runCycle}
+        onStartDemo={actions.startDemoMode}
+      />
 
       <VenueAdapters state={state} />
 

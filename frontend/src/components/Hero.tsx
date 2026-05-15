@@ -9,6 +9,7 @@ interface HeroProps {
   stats: PortfolioStats;
   weakest: Position;
   connectionMode: ConnectionMode;
+  walletProofVisible: boolean;
   onRunCycle: () => void;
   onShock: () => void;
 }
@@ -19,10 +20,11 @@ function modeLabel(mode: ConnectionMode): string {
   return "Demo Mode";
 }
 
-export function Hero({ state, stats, weakest, connectionMode, onRunCycle, onShock }: HeroProps) {
+export function Hero({ state, stats, weakest, connectionMode, walletProofVisible, onRunCycle, onShock }: HeroProps) {
   const meterPct = Math.min(100, Math.max(8, weakest.buffer * 4));
   const meterDanger = weakest.buffer < weakest.bufferTarget;
   const newest = state.receipts[0];
+  const walletAddress = state.wallet.address || state.integrations.circleWallet.address;
 
   return (
     <section className="hero wrap">
@@ -50,11 +52,16 @@ export function Hero({ state, stats, weakest, connectionMode, onRunCycle, onShoc
         <span className="status-chip">
           Receipt <strong>{newest ? receiptTrustLabel(newest) : "Pending"}</strong>
         </span>
+        {walletProofVisible && (
+          <span className="status-chip wallet-proof-chip">
+            Circle agent wallet <strong>{shortAddress(walletAddress)}</strong> - {fmtMoney(state.wallet.usdcBalance, 2)} USDC
+          </span>
+        )}
       </div>
 
       <p className="live-notice">
         Arc policy receipts are real when a tx hash is present. Venue execution adapters are simulated and labeled
-        until production venue integrations ship.
+        until production venue integrations ship. {walletProofVisible ? "No browser wallet signing - the backend Circle agent wallet acts for the agent." : ""}
       </p>
 
       <div className="hero-ctas">
@@ -136,7 +143,7 @@ export function Hero({ state, stats, weakest, connectionMode, onRunCycle, onShoc
         </div>
       </div>
 
-      <AgentStatus state={state} />
+      <AgentStatus state={state} walletProofVisible={walletProofVisible} />
     </section>
   );
 }

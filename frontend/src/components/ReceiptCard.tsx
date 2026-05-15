@@ -52,7 +52,7 @@ export function ReceiptCard({ receipt, state, isNewest, onDetails }: ReceiptCard
           </a>
         )}
         <button className="receipt-detail-btn" onClick={() => onDetails(receipt)}>
-          Details
+          View Details
         </button>
       </div>
     </div>

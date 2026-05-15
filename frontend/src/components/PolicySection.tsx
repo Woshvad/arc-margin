@@ -5,6 +5,8 @@ import type { AgentState, RiskProfile } from "../types/agent";
 interface PolicySectionProps {
   state: AgentState;
   pendingAction: PendingAction;
+  demoRunning: boolean;
+  highlighted: boolean;
   exportStatus: string | null;
   onProfile: (profile: RiskProfile) => void;
   onAutoHedge: (on: boolean) => void;
@@ -18,6 +20,8 @@ const profiles: RiskProfile[] = ["Conservative", "Balanced", "Advanced"];
 export function PolicySection({
   state,
   pendingAction,
+  demoRunning,
+  highlighted,
   exportStatus,
   onProfile,
   onAutoHedge,
@@ -27,9 +31,10 @@ export function PolicySection({
 }: PolicySectionProps) {
   const policy = state.policy;
   const capRemaining = Math.max(0, policy.dailySpendCap - policy.spentToday);
+  const busy = pendingAction !== null || demoRunning;
 
   return (
-    <section id="sec-policy" className="section wrap" data-screen-label="Policy Contract">
+    <section id="sec-policy" className={"section wrap" + (highlighted ? " section-highlight" : "")} data-screen-label="Policy Contract">
       <hr className="dotted" />
       <div className="section-header" style={{ marginTop: 36 }}>
         <div>
@@ -51,6 +56,7 @@ export function PolicySection({
                 key={profile}
                 className={"profile-btn" + (policy.profile === profile ? " active" : "")}
                 onClick={() => onProfile(profile)}
+                disabled={busy}
               >
                 {profile}
               </button>
@@ -93,17 +99,17 @@ export function PolicySection({
           </div>
 
           <div className="policy-actions">
-            <button className={"pill outline" + (policy.autoHedge ? " is-active" : "")} onClick={() => onAutoHedge(!policy.autoHedge)}>
+            <button className={"pill outline" + (policy.autoHedge ? " is-active" : "")} onClick={() => onAutoHedge(!policy.autoHedge)} disabled={busy}>
               Auto-Hedge {policy.autoHedge ? "On" : "Off"}
             </button>
-            <button className={"pill outline" + (state.autopilot ? " is-active" : "")} onClick={() => onAutopilot(!state.autopilot)}>
+            <button className={"pill outline" + (state.autopilot ? " is-active" : "")} onClick={() => onAutopilot(!state.autopilot)} disabled={busy}>
               Autopilot {state.autopilot ? "On" : "Off"}
             </button>
-            <button className={policy.paused ? "pill gold" : "pill danger"} onClick={() => onPaused(!policy.paused)}>
+            <button className={policy.paused ? "pill gold" : "pill danger"} onClick={() => onPaused(!policy.paused)} disabled={busy}>
               {policy.paused ? "Resume Agent" : "Pause Agent"}
             </button>
-            <button className="pill ghost" onClick={onExport}>
-              Export JSON
+            <button className="pill ghost" onClick={onExport} disabled={busy}>
+              {pendingAction === "export" ? "Exporting" : "Export JSON"}
             </button>
             {pendingAction && <span className="mini-pill warn">Updating {pendingAction}</span>}
             {exportStatus && <span className="mini-pill good">{exportStatus}</span>}
